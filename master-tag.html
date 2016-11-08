@@ -1,0 +1,271 @@
+<script type="text/javascript">
+  var masterTagController = (function () {
+        
+        var renders = [];
+        
+        var currentRender = 0;
+        
+        //Function to escpare strings
+        function escapeRegExp(stringToGoIntoTheRegex) {
+            return stringToGoIntoTheRegex.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        }
+        
+        //Function to close a lightbox
+        function closeLightbox(){
+            document.getElementById('rkd-popup').style.display = 'none';
+            document.getElementById('rkd-lightbox-overlay').style.display = 'none';
+        }
+        
+        //Function to send GA event
+        function sendGoogleEvent(type, name, label){
+            dataLayer.push({
+    			event: "dynamicEvent",
+    			dynamicCategory: type,
+    			dynamicAction: name,
+    			dynamicLabel: label
+        	});
+        }
+        
+        //Function for cookie creation
+        function createCookie(name, value, days) {
+            var date, expires;
+            if (days) {
+                date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = "; expires=" + date.toGMTString();
+            } else {
+                expires = "";
+            }
+            document.cookie = name + "=" + value + expires + "; path=/";
+        }
+        
+        //Function to increment render
+        function incrementRender(){
+            currentRender++;
+        }
+        
+        //Function for LightboxTestMode
+        function lightboxTestMode(render, name, type){
+            
+            var regexName =  escapeRegExp(name);
+            var regexLightbox = new RegExp(regexName);
+                    
+            if(window.location.href.match(regexLightbox)){
+                lightboxControl(render.showLightboxA, type, name, 'lightbox clicked');
+            }
+        }
+        
+        //Function for LightboxTestMode
+        function lightboxLiveMode(render, name, type, cookieName, frequency){
+            //review if the LB was displayed before
+            if ( document.cookie.indexOf(cookieName) !== -1 ) {
+                return;
+            }
+            
+            //create the cookie and show the lightbox
+            createCookie(cookieName, 'true', frequency);
+            sendGoogleEvent(type, name + ' has displayed', 'lightbox displayed');
+            lightboxControl(render.showLightboxA, type, name, 'lightbox clicked');
+        }
+        
+        //Function for LightboxSplitTestMode
+        function lightboxSplitTestMode(render, name, type){
+            
+            
+           var testUrlA = name + 'A';
+           testUrlA =  escapeRegExp(testUrlA);
+           var regexA = new RegExp(testUrlA);
+                    
+           var testUrlB = name + 'B';
+           testUrlB = escapeRegExp(testUrlB);
+           var regexB = new RegExp(testUrlB);
+                    
+            if(window.location.href.match(regexA)){
+                lightboxControl(render.showLightboxA, type, name, name + ' VersionA');
+            }
+                    
+            if(window.location.href.match(regexB)){
+                lightboxControl(render.showLightboxA, type, name, name + ' VersionB');
+            } 
+        }
+        
+        //Function for LightboxSplitLive
+        function lightboxSplitLiveMode(render, name, type, cookieName, frequency){
+           //review if the LB was displayed before
+            if ( document.cookie.indexOf(cookieName) !== -1 ) {
+                return;
+            }
+            
+            //create the cookie and show the lightbox
+            createCookie(cookieName, 'true', frequency);
+            
+            var randomTest = Math.random();
+        
+            if(randomTest < 0.5){
+                sendGoogleEvent(type, name + ' has displayed', name + ' VersionA');
+                lightboxControl(render.showLightboxA, type, name, name + ' VersionA');
+            } else {
+                sendGoogleEvent(type, name + ' has displayed', name + ' VersionB');
+                lightboxControl(render.showLightboxA, type, name, name + ' VersionB');
+            }
+        }
+        
+        //Function to control lightbox
+        function lightboxControl(popup, type, name, label){
+            
+            $('body').append(popup);
+            var overlay = $('.rkd-lightbox-overlay');
+                    
+    
+            $('.rkd-popup').find('.close-button').click(function(e) {
+                e.preventDefault();
+                closeLightbox();
+            });
+    
+            // Close the modal
+            overlay.click(function() {
+                closeLightbox();
+            });
+            
+            //Fire and Event on Click
+            $('.donate-now').click(function() {
+                sendGoogleEvent(type, name, label);  
+            });
+        }
+        
+        //Function to control render of fullscreen modal
+        function fullscreenRender(render){
+            console.log("rendering fullscreen");
+            var script = document.createElement( 'script' );
+            script.type = 'text/javascript';
+            script.src = render.url;
+            $(document.body)[0].appendChild( script );
+        }
+        
+        //Public Function
+        function publicSet(render, cookieName, type, name, priority, previewMode, frequency){
+            if(type == 'lightboxSplit'){
+                
+                if(previewMode == "on"){
+                    
+                    lightboxSplitTestMode(render, name, type);
+                    
+                } else if(previewMode == "off") {
+                    
+                    if(currentRender == 0 && priority == 1){
+                        
+                        lightboxSplitLiveMode(render, name, type, cookieName, frequency);
+                        incrementRender();
+                        renders.push(cookieName);
+                        
+                    } else if(priority != 1){
+                        
+                        setTimeout(function(){  
+                          for(var i = 0; i > renders.count(); i++){
+                                if ( document.cookie.indexOf(renders[i]) == -1 ) {
+                                    return;
+                                }
+                            }
+                            
+                            lightboxSplitLiveMode(render, name, type, cookieName, frequency);
+                            renders.push(cookieName);
+                            incrementRender();
+                        }, 100);
+                    }
+        
+                }
+                
+            } else if(type == 'lightbox'){
+                
+                if(previewMode == "on"){
+                    
+                    lightboxTestMode(render, name, type);
+                    
+                } else if(previewMode == "off") {
+                    
+                    if(currentRender == 0 && priority == 1){
+                        
+                        lightboxLiveMode(render, name, type, cookieName, frequency);
+                        renders.push(cookieName);
+                        incrementRender();
+                        
+                    } else if(priority != 1){
+                        
+                        setTimeout(function(){  
+                          for(var i = 0; i > renders.count(); i++){
+                                if ( document.cookie.indexOf(renders[i]) == -1 ) {
+                                    return;
+                                }
+                            }
+                            
+                            lightboxLiveMode(render, name, type, cookieName, frequency);
+                            renders.push(cookieName);
+                            incrementRender();
+                        }, 100);
+                    }
+                
+                }
+                
+            } else if(type == 'fullScreen'){
+                
+                 console.log('fullscreen');
+                
+                 if(previewMode == "on"){
+                     
+                   var testUrlFullscreen = name;
+                   testUrlFullscreen =  escapeRegExp(testUrlFullscreen);
+                   var regexFullscreen = new RegExp(testUrlFullscreen);
+                            
+                    if(window.location.href.match(regexFullscreen)){
+                        fullscreenRender(render);
+                    }
+                    
+                } else if(previewMode == "off") {
+                    
+                    if(currentRender == 0 && priority == 1){
+                        
+                        if ( document.cookie.indexOf(cookieName) !== -1 ) {
+                            return;
+                        }
+                    
+                        createCookie(cookieName, 'true', frequency);
+                        sendGoogleEvent(type, name, name + ' has displayed');
+                        fullscreenRender(render);
+                        renders.push(cookieName);
+                        incrementRender();
+                        
+                    } else if(priority != 1){
+                        
+                        setTimeout(function(){  
+                          for(var i = 0; i > renders.count(); i++){
+                                if ( document.cookie.indexOf(renders[i]) == -1 ) {
+                                    return;
+                                }
+                            }
+                            
+                            if ( document.cookie.indexOf(cookieName) !== -1 ) {
+                                return;
+                            }
+                    
+                            createCookie(cookieName, 'true', frequency);
+                            sendGoogleEvent(type, name, name + ' has displayed');
+                            fullscreenRender(render);
+                            renders.push(cookieName);
+                            incrementRender();
+                        }, 100);
+                    }
+                    
+                }
+                
+            }
+        }
+        
+        return {
+            setter: publicSet
+        };
+        
+    })();
+  
+</script>
+    
+
