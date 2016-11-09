@@ -152,7 +152,7 @@
                     
                 } else if(previewMode == "off") {
                     
-                    if(currentRender == 0 && priority == 1){
+                    if(priority == 1){
                         
                         lightboxSplitLiveMode(render, name, type, cookieName, frequency);
                         incrementRender();
@@ -183,7 +183,7 @@
                     
                 } else if(previewMode == "off") {
                     
-                    if(currentRender == 0 && priority == 1){
+                    if(priority == 1){
                         
                         lightboxLiveMode(render, name, type, cookieName, frequency);
                         renders.push(cookieName);
@@ -222,7 +222,7 @@
                     
                 } else if(previewMode == "off") {
                     
-                    if(currentRender == 0 && priority == 1){
+                    if(priority == 1){
                         
                         if ( document.cookie.indexOf(cookieName) !== -1 ) {
                             return;
@@ -261,7 +261,8 @@
         }
         
         return {
-            setter: publicSet
+            setter: publicSet,
+            lightboxList : renders
         };
         
     })();
